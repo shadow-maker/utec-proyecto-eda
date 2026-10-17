@@ -1,0 +1,13 @@
+# Datos (no se versionan: el CSV original pesa varios GB)
+data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
