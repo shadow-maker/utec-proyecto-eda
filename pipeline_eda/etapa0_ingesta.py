@@ -14,8 +14,30 @@ from .evento import Event
 
 def leer_csv(ruta: Path | str, limite: int | None = None) -> Iterator[Event]:
     """Lee el CSV enriquecido de forma perezosa (csv.reader) y entrega Event."""
-    raise NotImplementedError
 
+    with open(ruta, mode="r") as file:
+        reader = csv.reader(file)
+
+        keys = next(reader)
+
+        for line in reader:
+            try:
+                event = Event(
+                    event_time=line[0],
+                    event_type=line[1],
+                    product_id=int(line[2]),
+                    category_id=int(line[3]),
+                    category_code=line[4],
+                    brand=line[5],
+                    price=float(line[6]),
+                    user_id=int(line[7]),
+                    user_session=line[8]
+                )
+            except ValueError as e:
+                print(f"Error al convertir fila: {line}. Error: {e}")
+                continue
+
+            yield event
 
 class _Nodo:
     __slots__ = ("valor", "siguiente")
