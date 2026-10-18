@@ -3,6 +3,7 @@
 Estructuras: hash table propia para el catálogo, LRU (hash + lista doblemente
 enlazada) para lookups frecuentes y matriz dispersa usuario × producto.
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -13,6 +14,8 @@ from .evento import Event, Producto
 
 class TablaHash:
     """Tabla hash propia (encadenamiento o direccionamiento abierto) con rehash."""
+
+    """Joaquin"""
 
     def __init__(self, capacidad_inicial: int = 1024) -> None:
         self.capacidad = capacidad_inicial
