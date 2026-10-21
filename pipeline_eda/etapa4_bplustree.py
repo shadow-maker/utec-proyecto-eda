@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from bisect import bisect_left, bisect_right
 from collections.abc import Iterator
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -290,7 +291,7 @@ class IndiceProductos:
 
         product_id = int(ev.product_id)
         precio = float(ev.price)
-        tiempo = int(ev.event_time)
+        tiempo = ev.event_time
 
         # Solo indexamos precios válidos y no negativos.
         if precio >= 0:
@@ -327,8 +328,8 @@ class IndiceProductos:
 
     def eventos_en_rango_tiempo(
         self,
-        desde: int,
-        hasta: int,
+        desde: datetime,
+        hasta: datetime,
     ) -> Iterator[Any]:
         """Devuelve los eventos dentro del intervalo de tiempo."""
         if desde > hasta:

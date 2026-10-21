@@ -6,6 +6,7 @@ equipo: hacerlo solo mediante un PR revisado por los tres.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import IntEnum
 
 
@@ -22,7 +23,7 @@ class Prioridad(IntEnum):
 @dataclass(slots=True)
 class Event:
     # --- Campos reales (REES46) ---
-    event_time: int  # epoch en segundos (UTC)
+    event_time: datetime  # con zona horaria UTC
     event_type: str  # "view" | "cart" | "purchase"
     product_id: int
     category_id: int
