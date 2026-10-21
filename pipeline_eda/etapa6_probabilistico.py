@@ -1,6 +1,6 @@
 """Etapa 6 [FIJA] — Filtrado probabilístico (responsable: A).
 
-Estructuras: Bloom Filter para tarjetas/dispositivos/cuentas señaladas y
+Estructuras: Bloom Filter para tarjetas/cuentas señaladas y
 Count-Min Sketch para la intensidad de intentos en una ventana temporal.
 Un positivo del Bloom Filter se verifica contra el conjunto exacto antes de
 bloquear la operación.
@@ -71,7 +71,7 @@ class DetectorFraude:
         raise NotImplementedError
 
     def consumir(self, ev: Event) -> Alerta | None:
-        """Devuelve una Alerta si la tarjeta/dispositivo está señalada o supera el umbral."""
+        """Devuelve una Alerta si la tarjeta/cuenta está señalada o supera el umbral."""
         raise NotImplementedError
 
     def verificar(self, alerta: Alerta) -> bool:

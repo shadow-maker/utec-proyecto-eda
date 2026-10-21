@@ -32,11 +32,10 @@ class Event:
     price: float
     user_id: int
     user_session: str | None  # vacía en algunas filas del CSV
-    # --- Campos sintéticos (generador.py) ---
-    order_id: str | None = None  # solo purchase: compras de la misma sesión
+    # --- Campos sintéticos (los genera la etapa 0) ---
+    order_id: str | None = None  # solo purchase: = user_session (una orden = las compras de una sesión)
     tipo_envio: str | None = None  # "express" | "estandar" | "programada"; solo purchase
     card_id: str | None = None  # solo purchase
-    device_id: str | None = None
     # --- Verdad de referencia: SOLO para evaluar; el pipeline no debe leerlos ---
     is_fraud: bool = False
     is_dup: bool = False
@@ -65,7 +64,7 @@ class Producto:
 class Alerta:
     """Salida de la etapa 6. Vuelve al heap de la etapa 2 con Prioridad.ALERTA."""
 
-    tipo: str  # "tarjeta" | "dispositivo" | "usuario"
-    clave: str  # card_id, device_id o user_id señalado
+    tipo: str  # "tarjeta" | "usuario"
+    clave: str  # card_id o user_id señalado
     conteo_estimado: int  # Count-Min Sketch en la ventana actual
     evento: Event  # operación retenida hasta verificar la alerta

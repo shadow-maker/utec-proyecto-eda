@@ -2,12 +2,12 @@
 
 Único módulo que conoce a todas las etapas y las conecta:
 
-    fuente → 0 buffer → 1 dedup → 2 heap → despachador ─┬→ 6 fraude ─ alerta → 2 heap
-                                                        ├→ 3 catálogo / LRU
-                                                        ├→ 4 B+Tree
-                                                        ├→ 7 similitud
-                                                        ├→ 8 grafo
-                                                        └→ 9 servicio
+    fuente → 0 sintético + buffer → 1 dedup → 2 heap → despachador ─┬→ 6 fraude ─ alerta → 2 heap
+                                                                    ├→ 3 catálogo / LRU
+                                                                    ├→ 4 B+Tree
+                                                                    ├→ 7 similitud
+                                                                    ├→ 8 grafo
+                                                                    └→ 9 servicio
     al cerrar: 5 KD-Tree y HNSW (7) se construyen con el catálogo de la etapa 3.
 
 Regla del proyecto: un módulo de etapa solo importa `evento`, nunca otro módulo
@@ -34,7 +34,7 @@ from .evento import Alerta, Event
 
 @dataclass
 class Config:
-    seed: int = 42
+    seed: int = 42  # etapas 6–8; los datos sintéticos usan SEMILLA de la etapa 0
     capacidad_buffer: int = 50_000
     tam_lote: int = 10_000
     ventana_dedup: int = 100_000
@@ -69,8 +69,9 @@ class Pipeline:
         return [self.e0, self.e1, self.e2, self.e3, self.e4,
                 self.e5, self.e6, self.e7, self.e8, self.e9]
 
-    def run(self, fuente: Iterable[Event], senalados: Iterable[str] = ()) -> None:
-        self.e6.cargar_senalados(senalados)
+    def run(self, fuente: Iterable[Event]) -> None:
+        """`fuente`: eventos reales (p. ej. leer_csv); la etapa 0 agrega lo sintético."""
+        self.e6.cargar_senalados(self.e0.senalados())
         for lote in self.e0.lotes(fuente):
             for ev in self.e1.procesar(lote):
                 self.e2.push_evento(ev)
