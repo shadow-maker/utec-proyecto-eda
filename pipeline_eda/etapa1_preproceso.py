@@ -5,7 +5,6 @@ deduplicar.
 """
 from __future__ import annotations
 
-import time
 from collections.abc import Callable
 from typing import Any
 
@@ -140,13 +139,11 @@ class Preprocesador:
     def __init__(self, ventana_dedup: int = 100_000) -> None:
         self.ventana_dedup = ventana_dedup  # cuántas claves recientes se recuerdan entre lotes
         self._claves_vistas: list[tuple] = []  # ordenadas, para búsqueda binaria
-        self.lotes = 0
         self.recibidos = 0
         self.invalidos: dict[str, int] = {}  # motivo -> cantidad
         self.duplicados_lote = 0
         self.duplicados_ventana = 0
         self.emitidos = 0
-        self.segundos = 0.0
 
     @staticmethod
     def clave(ev: Event) -> tuple:
@@ -164,8 +161,6 @@ class Preprocesador:
         Entre copias de un mismo evento se conserva la primera que llegó.
         O(B log B + B log W + W) por lote; O(B log W) si el lote ya viene ordenado.
         """
-        inicio = time.perf_counter()
-        self.lotes += 1
         self.recibidos += len(lote)
 
         validos = []
@@ -197,7 +192,6 @@ class Preprocesador:
 
         self._actualizar_ventana(nuevas)
         self.emitidos += len(salida)
-        self.segundos += time.perf_counter() - inicio
         return salida
 
     def _actualizar_ventana(self, nuevas: list[tuple]) -> None:
@@ -219,8 +213,6 @@ class Preprocesador:
         """Motivo por el que se descarta el evento, o None si es válido."""
         if ev.event_type not in TIPOS_EVENTO:
             return "tipo_evento"
-        if not ev.event_time:
-            return "sin_fecha"
         if ev.product_id <= 0 or ev.category_id <= 0 or ev.user_id <= 0:
             return "id"
         if not ev.user_session:
@@ -241,7 +233,6 @@ class Preprocesador:
     def metricas(self) -> dict[str, Any]:
         """Eventos recibidos, inválidos y duplicados descartados."""
         return {
-            "lotes": self.lotes,
             "recibidos": self.recibidos,
             "invalidos": sum(self.invalidos.values()),
             "invalidos_por_motivo": dict(self.invalidos),
@@ -249,5 +240,4 @@ class Preprocesador:
             "duplicados_ventana": self.duplicados_ventana,
             "emitidos": self.emitidos,
             "tamano_ventana": len(self._claves_vistas),
-            "segundos": round(self.segundos, 3),
         }

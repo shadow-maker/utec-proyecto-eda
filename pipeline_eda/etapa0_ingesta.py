@@ -33,7 +33,6 @@ TAMANOS = {
 
 # --- Parámetros del componente sintético ---
 PROPORCION_ENVIO = {"express": 0.2, "estandar": 0.6, "programada": 0.2}
-MAX_TARJETAS_POR_USUARIO = 2
 TASA_DUP = 0.02  # fracción de eventos que se reenvían
 DISTANCIA_MEDIA_DUP = 20_000  # eventos entre el original y su copia (distribución exponencial)
 TASA_RAFAGA = 0.002  # probabilidad de que una compra real dispare una ráfaga de fraude
@@ -48,72 +47,54 @@ _CAMPOS_REALES = (
 )
 
 
-def _a_fecha(texto: str) -> datetime:
-    """'2019-10-01 00:00:00 UTC' -> datetime en UTC."""
-    return datetime.fromisoformat(texto[:19]).replace(tzinfo=timezone.utc)
-
-
-def leer_csv(
-    ruta: Path | str, limite: int | None = None, stats: dict[str, int] | None = None
-) -> Iterator[Event]:
+def leer_csv(ruta: Path | str, limite: int | None = None) -> Iterator[Event]:
     """Lee el CSV real de forma perezosa y entrega Event con los tipos del contrato.
 
     - Las columnas se ubican por el encabezado.
     - event_time pasa a datetime (UTC), los números a int/float y el texto vacío a None.
-    - Una fila con otro número de columnas o que no se puede convertir se descarta y se cuenta.
-    - `limite`: como máximo esa cantidad de eventos. `stats` recibe "leidas" e "invalidas" al terminar.
+    - Una fila con otro número de columnas o que no se puede convertir se descarta.
+    - `limite`: como máximo esa cantidad de eventos.
 
     La validación semántica (precio > 0, tipo de evento conocido...) es de la etapa 1.
     """
-    leidas = invalidas = emitidos = 0
+    emitidos = 0
     ultimo_texto, ultima_fecha = None, None
-    try:
-        with open(ruta, newline="", encoding="utf-8") as f:
-            reader = csv.reader(f)
-            encabezado = next(reader, None)
-            if encabezado is None:
-                return
-            col = {nombre: i for i, nombre in enumerate(encabezado)}
-            faltan = [c for c in _CAMPOS_REALES if c not in col]
-            if faltan:
-                raise ValueError(f"Faltan columnas en {ruta}: {faltan}")
-            i_time, i_type, i_prod, i_cat, i_code, i_brand, i_price, i_user, i_ses = (
-                col[c] for c in _CAMPOS_REALES
-            )
-            n_columnas = len(encabezado)
+    with open(ruta, newline="", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        encabezado = next(reader, None)
+        if encabezado is None:
+            return
+        faltan = [c for c in _CAMPOS_REALES if c not in encabezado]
+        if faltan:
+            raise ValueError(f"Faltan columnas en {ruta}: {faltan}")
+        i_campos = {c: encabezado.index(c) for c in _CAMPOS_REALES}  # posición de cada campo en el CSV
+        n_columnas = len(encabezado)
 
-            for fila in reader:
-                if limite is not None and emitidos >= limite:
-                    break
-                leidas += 1
-                if len(fila) != n_columnas:
-                    invalidas += 1
-                    continue
-                try:
-                    texto = fila[i_time]
-                    if texto != ultimo_texto:  # el CSV viene ordenado: muchas filas comparten segundo
-                        ultima_fecha = _a_fecha(texto)
-                        ultimo_texto = texto
-                    ev = Event(
-                        event_time=ultima_fecha,
-                        event_type=fila[i_type],
-                        product_id=int(fila[i_prod]),
-                        category_id=int(fila[i_cat]),
-                        category_code=fila[i_code] or None,
-                        brand=fila[i_brand] or None,
-                        price=float(fila[i_price]),
-                        user_id=int(fila[i_user]),
-                        user_session=fila[i_ses] or None,
-                    )
-                except ValueError:
-                    invalidas += 1
-                    continue
-                emitidos += 1
-                yield ev
-    finally:
-        if stats is not None:
-            stats["leidas"] = leidas
-            stats["invalidas"] = invalidas
+        for fila in reader:
+            if limite is not None and emitidos >= limite:
+                break
+            if len(fila) != n_columnas:
+                continue
+            try:
+                texto = fila[i_campos["event_time"]]
+                if texto != ultimo_texto:  # el CSV viene ordenado: muchas filas comparten segundo
+                    ultima_fecha = datetime.fromisoformat(texto[:19]).replace(tzinfo=timezone.utc)
+                    ultimo_texto = texto
+                ev = Event(
+                    event_time=ultima_fecha,
+                    event_type=fila[i_campos["event_type"]],
+                    product_id=int(fila[i_campos["product_id"]]),
+                    category_id=int(fila[i_campos["category_id"]]),
+                    category_code=fila[i_campos["category_code"]] or None,
+                    brand=fila[i_campos["brand"]] or None,
+                    price=float(fila[i_campos["price"]]),
+                    user_id=int(fila[i_campos["user_id"]]),
+                    user_session=fila[i_campos["user_session"]] or None,
+                )
+            except ValueError:  # fila que no se puede convertir
+                continue
+            emitidos += 1
+            yield ev
 
 
 class Sintetizador:
@@ -122,13 +103,14 @@ class Sintetizador:
     Campos, solo en las compras:
       - order_id: derivado, = user_session (una orden son las compras de una sesión).
       - tipo_envio: se sortea una vez por orden según PROPORCION_ENVIO.
-      - card_id: cada usuario tiene entre 1 y MAX_TARJETAS_POR_USUARIO tarjetas fijas.
+      - card_id: derivado, una tarjeta por usuario (T<user_id>).
     Eventos agregados al stream:
       - Duplicados (is_dup=True): con probabilidad TASA_DUP un evento se reenvía más
         adelante, a una distancia exponencial de media DISTANCIA_MEDIA_DUP eventos.
         Los duplicados exactos que ya trae el CSV también se marcan.
       - Fraude (is_fraud=True): con probabilidad TASA_RAFAGA una compra dispara una
-        ráfaga de INTENTOS_POR_RAFAGA intentos, uno por segundo, con una tarjeta robada.
+        ráfaga de INTENTOS_POR_RAFAGA intentos, uno por segundo, del mismo producto
+        con una tarjeta robada.
         Solo una parte de las tarjetas robadas está señalada de antemano (`senaladas`).
     """
 
@@ -140,7 +122,6 @@ class Sintetizador:
             rng_senaladas.sample(self.tarjetas_robadas, int(N_TARJETAS_ROBADAS * FRACCION_SENALADAS))
         )
         self._envio_por_orden: dict[str, str] = {}
-        self._tarjetas_por_usuario: dict[int, list[str]] = {}
         self.duplicados_reales = 0
         self.duplicados_inyectados = 0
         self.rafagas = 0
@@ -151,7 +132,6 @@ class Sintetizador:
         rng = self._rng
         pendientes_dup: list[tuple[int, int, Event]] = []  # (posición de salida, orden, copia)
         pendientes_fraude: list[tuple[datetime, int, Event]] = []  # (hora, orden, intento)
-        compras_recientes: deque[Event] = deque(maxlen=1_000)  # productos para las ráfagas
         filas_recientes: deque[tuple] = deque()  # para marcar los duplicados que ya trae el CSV
         filas_recientes_set: set[tuple] = set()
         posicion = orden = 0
@@ -167,12 +147,10 @@ class Sintetizador:
 
             self._marcar_duplicado_real(ev, filas_recientes, filas_recientes_set)
             self._enriquecer(ev)
-            if ev.event_type == "purchase":
-                compras_recientes.append(ev)
-                if rng.random() < TASA_RAFAGA:
-                    for intento in self._rafaga(ev, compras_recientes):
-                        orden += 1
-                        heapq.heappush(pendientes_fraude, (intento.event_time, orden, intento))
+            if ev.event_type == "purchase" and rng.random() < TASA_RAFAGA:
+                for intento in self._rafaga(ev):
+                    orden += 1
+                    heapq.heappush(pendientes_fraude, (intento.event_time, orden, intento))
             if rng.random() < TASA_DUP:
                 distancia = 1 + int(rng.expovariate(1 / DISTANCIA_MEDIA_DUP))
                 orden += 1
@@ -209,35 +187,29 @@ class Sintetizador:
             if ev.order_id not in self._envio_por_orden:
                 self._envio_por_orden[ev.order_id] = self._sortear_envio()
             ev.tipo_envio = self._envio_por_orden[ev.order_id]
-        tarjetas = self._tarjetas_por_usuario.get(ev.user_id)
-        if tarjetas is None:
-            n = self._rng.randint(1, MAX_TARJETAS_POR_USUARIO)
-            tarjetas = self._tarjetas_por_usuario[ev.user_id] = [f"T{ev.user_id}-{k}" for k in range(n)]
-        ev.card_id = tarjetas[0] if len(tarjetas) == 1 else self._rng.choice(tarjetas)
+        ev.card_id = f"T{ev.user_id}"
 
     def _sortear_envio(self) -> str:
         return self._rng.choices(list(PROPORCION_ENVIO), weights=list(PROPORCION_ENVIO.values()))[0]
 
-    def _rafaga(self, disparador: Event, compras_recientes: deque[Event]) -> Iterator[Event]:
+    def _rafaga(self, disparador: Event) -> Iterator[Event]:
         """Intentos de compra con una tarjeta robada desde una cuenta del atacante."""
-        rng = self._rng
         self.rafagas += 1
-        tarjeta = rng.choice(self.tarjetas_robadas)
+        tarjeta = self._rng.choice(self.tarjetas_robadas)
         cuenta = USUARIO_FRAUDE_BASE + self.rafagas
         sesion = f"fraude-{self.rafagas}"
         envio = self._sortear_envio()
         # Un intento por segundo: dos intentos iguales en el mismo segundo serían un duplicado para la etapa 1.
         for segundo in range(INTENTOS_POR_RAFAGA):
-            base = rng.choice(compras_recientes)  # un producto real comprado hace poco
             self.intentos_fraude += 1
             yield Event(
                 event_time=disparador.event_time + timedelta(seconds=segundo),
                 event_type="purchase",
-                product_id=base.product_id,
-                category_id=base.category_id,
-                category_code=base.category_code,
-                brand=base.brand,
-                price=base.price,
+                product_id=disparador.product_id,
+                category_id=disparador.category_id,
+                category_code=disparador.category_code,
+                brand=disparador.brand,
+                price=disparador.price,
                 user_id=cuenta,
                 user_session=sesion,
                 order_id=sesion,
