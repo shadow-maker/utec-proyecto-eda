@@ -11,3 +11,6 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# Documentos del curso (enunciado, plan de acción): solo locales
+docs/
