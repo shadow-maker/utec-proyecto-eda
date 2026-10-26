@@ -204,16 +204,31 @@ class CatalogoCache:
         self.interacciones = MatrizDispersa()
 
     def consumir(self, ev: Event) -> None:
-        """Actualiza el catálogo (precio, marca...) y la matriz de interacciones."""
-        raise NotImplementedError
+        """Actualiza el catálogo (último precio visto) y la matriz de interacciones."""
+        producto = self.catalogo.get(ev.product_id)
+        if producto is None:
+            self.catalogo.put(ev.product_id, Producto.desde_evento(ev))
+        else:
+            # Se modifica el mismo objeto que guarda la LRU, así la caché nunca queda desactualizada.
+            producto.price = ev.price
+        self.interacciones.incrementar(ev.user_id, ev.product_id, PESOS[ev.event_type])
 
     def obtener_producto(self, product_id: int) -> Producto | None:
         """Consulta puntual: primero la LRU, luego la tabla hash."""
-        raise NotImplementedError
+        producto = self.cache.get(product_id)
+        if producto is None:
+            producto = self.catalogo.get(product_id)
+            if producto is not None:
+                self.cache.put(product_id, producto)
+        return producto
 
     def productos(self) -> Iterator[Producto]:
-        raise NotImplementedError
+        return self.catalogo.valores()
 
     def metricas(self) -> dict[str, Any]:
         """Productos en catálogo, hit rate de la LRU, celdas no nulas de la matriz."""
-        raise NotImplementedError
+        return {
+            "productos": len(self.catalogo),
+            "tasa_aciertos_lru": self.cache.tasa_aciertos(),
+            "celdas_no_nulas": self.interacciones.no_nulos,
+        }
