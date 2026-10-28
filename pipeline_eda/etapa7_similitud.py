@@ -1,10 +1,23 @@
+"""Etapa 7 [FIJA] — Similitud aproximada (responsable: B).
 
-import random
-from collections import defaultdict
+Estructuras: MinHash + LSH sobre conjuntos (usuarios que compraron o
+agregaron al carrito cada producto) y HNSW sobre vectores de producto.
+Líneas base: Jaccard por fuerza bruta y KNN exacto de la etapa 5.
+
+La distancia del HNSW la entrega el orquestador (la misma del KD-Tree de la
+etapa 5), así este módulo no importa otra etapa.
+"""
+from __future__ import annotations
+
 import heapq
 import random
+from collections import defaultdict
+from collections.abc import Callable
+from typing import Any
 
-from .etapa5_kdtree import distancia_mixta, knn_exacto
+from .evento import Event
+
+Vector = tuple[float, ...]
 
 PRIMO = 2**61 - 1
 
@@ -118,86 +131,14 @@ class LSH:
         return resultado
 
 
-
-    def consumir(self, ev: Event) -> None:
-        """Registra usuarios que compraron o agregaron al carrito."""
-
-        if ev.event_type not in ("cart", "purchase", "add_to_cart"):
-            return
-
-        if ev.user_id is None or ev.product_id is None:
-            return
-
-        producto = int(ev.product_id)
-        usuario = int(ev.user_id)
-
-        if producto not in self.conjuntos:
-            self.conjuntos[producto] = set()
-
-        self.conjuntos[producto].add(usuario)
-
-    def cerrar(self) -> None:
-        """Construye firmas MinHash y el índice LSH."""
-
-        self.lsh = LSH(
-            self.lsh.bandas,
-            self.lsh.filas
-        )
-
-        self.firmas_productos = {}
-
-        for producto, usuarios in self.conjuntos.items():
-
-            firma = self.minhash.firma(usuarios)
-
-            self.firmas_productos[producto] = firma
-
-            self.lsh.insertar(producto, firma)
-
-    def relacionados(self, product_id: int, k: int) -> list[int]:
-        """Encuentra productos con compradores similares."""
-
-        if k <= 0 or product_id not in self.conjuntos:
-            return []
-
-        if not hasattr(self, "firmas_productos"):
-            self.cerrar()
-
-        firma = self.firmas_productos[product_id]
-
-        candidatos = self.lsh.candidatos(firma)
-
-        candidatos.discard(product_id)
-
-        # Ordenamos los candidatos por Jaccard exacto.
-        resultados = []
-
-        for candidato in candidatos:
-
-            similitud = jaccard_exacto(
-                self.conjuntos[product_id],
-                self.conjuntos[candidato]
-            )
-
-            resultados.append((similitud, candidato))
-
-        resultados.sort(key=lambda x: (-x[0], x[1]))
-
-        return [producto for _, producto in resultados[:k]]
-
-
-
-class HNSW:
-   import heapq
-import math
-import random
-
 class HNSW:
     """HNSW educativo: capas jerárquicas, búsqueda ef y selección diversificada."""
 
-    def __init__(self, m: int = 16, ef_construccion: int = 200, seed: int = 42) -> None:
+    def __init__(self, distancia: Callable[[Vector, Vector], float], m: int = 16,
+                 ef_construccion: int = 200, seed: int = 42) -> None:
         if m < 2 or ef_construccion < 1:
             raise ValueError('m debe ser >= 2 y ef_construccion >= 1')
+        self.distancia = distancia
         self.m = m
         self.ef_construccion = max(ef_construccion, m)
         self.seed = seed
@@ -210,7 +151,7 @@ class HNSW:
         self.nodos_visitados = 0
 
     def _distancia(self, q, id_):
-        return distancia_mixta(q, self.vectores[id_])
+        return self.distancia(q, self.vectores[id_])
 
     def _nivel_aleatorio(self):
         nivel = 0
@@ -262,7 +203,7 @@ class HNSW:
         descartados = []
         for candidato in candidatos:
             dc = self._distancia(self.vectores[origen], candidato)
-            if all(distancia_mixta(self.vectores[candidato], self.vectores[s]) >= dc for s in seleccionados):
+            if all(self.distancia(self.vectores[candidato], self.vectores[s]) >= dc for s in seleccionados):
                 seleccionados.append(candidato)
             else:
                 descartados.append(candidato)
@@ -286,9 +227,6 @@ class HNSW:
     def insertar(self, id_: int, vector) -> None:
         if id_ in self.vectores:
             raise ValueError(f'Producto duplicado: {id_}')
-        if len(vector) != 2 or not math.isfinite(float(vector[0])):
-            raise ValueError('Vector inválido: (precio_normalizado, category_id)')
-        vector = (float(vector[0]), int(vector[1]))
         nivel = self._nivel_aleatorio()
         self.vectores[id_] = vector
         self.niveles[id_] = nivel
@@ -318,10 +256,104 @@ class HNSW:
         self.nodos_visitados = 0
         if k <= 0 or self.entrada is None:
             return []
-        if len(q) != 2:
-            raise ValueError('Consulta inválida')
         actual = self.entrada
         for capa in range(self.nivel_maximo, 0, -1):
             actual = self._busqueda_voraz(q, actual, capa)
         return self._buscar_capa(q, [actual], max(ef, k), 0)[:k]
 
+
+class Similitud:
+    nombre = "etapa7_similitud"
+
+    def __init__(self, distancia: Callable[[Vector, Vector], float], num_permutaciones: int = 128,
+                 bandas: int = 32, seed: int = 42) -> None:
+        self.conjuntos: dict[int, set[int]] = {}  # product_id -> usuarios
+        self.minhash = MinHash(num_permutaciones, seed)
+        self.lsh = LSH(bandas, num_permutaciones // bandas)
+        self.hnsw = HNSW(distancia, seed=seed)
+        self.firmas_productos: dict[int, list[int]] = {}  # las llena cerrar()
+
+    def consumir(self, ev: Event) -> None:
+        """Registra usuarios que compraron o agregaron al carrito."""
+
+        if ev.event_type not in ("cart", "purchase"):
+            return
+
+        if ev.user_id is None or ev.product_id is None:
+            return
+
+        producto = int(ev.product_id)
+        usuario = int(ev.user_id)
+
+        if producto not in self.conjuntos:
+            self.conjuntos[producto] = set()
+
+        self.conjuntos[producto].add(usuario)
+
+    def cerrar(self) -> None:
+        """Construye firmas MinHash y el índice LSH."""
+
+        self.lsh = LSH(
+            self.lsh.bandas,
+            self.lsh.filas
+        )
+
+        self.firmas_productos = {}
+
+        for producto, usuarios in self.conjuntos.items():
+
+            firma = self.minhash.firma(usuarios)
+
+            self.firmas_productos[producto] = firma
+
+            self.lsh.insertar(producto, firma)
+
+    def relacionados(self, product_id: int, k: int) -> list[int]:
+        """Encuentra productos con compradores similares."""
+
+        if k <= 0 or product_id not in self.conjuntos:
+            return []
+
+        firma = self.firmas_productos[product_id]
+
+        candidatos = self.lsh.candidatos(firma)
+
+        candidatos.discard(product_id)
+
+        # Ordenamos los candidatos por Jaccard exacto.
+        resultados = []
+
+        for candidato in candidatos:
+
+            similitud = jaccard_exacto(
+                self.conjuntos[product_id],
+                self.conjuntos[candidato]
+            )
+
+            resultados.append((similitud, candidato))
+
+        resultados.sort(key=lambda x: (-x[0], x[1]))
+
+        return [producto for _, producto in resultados[:k]]
+
+    def construir_vectorial(self, vectores: dict[int, Vector]) -> None:
+        """Inserta en HNSW los vectores de producto (los entrega el orquestador)."""
+        for product_id, vector in vectores.items():
+            self.hnsw.insertar(product_id, vector)
+
+    def similares_vectoriales(self, product_id: int, k: int) -> list[int]:
+        """Productos con atributos parecidos (HNSW), sin el propio producto."""
+        if k <= 0 or product_id not in self.hnsw.vectores:
+            return []
+        vecinos = self.hnsw.buscar(self.hnsw.vectores[product_id], k + 1)
+        return [pid for _, pid in vecinos if pid != product_id][:k]
+
+    def metricas(self) -> dict[str, Any]:
+        """Productos indexados en LSH y en HNSW, nivel del grafo y nodos visitados."""
+        return {
+            "productos_lsh": len(self.lsh.firmas),
+            "buckets_lsh": len(self.lsh.buckets),
+            "productos_hnsw": len(self.hnsw.vectores),
+            "nivel_maximo_hnsw": self.hnsw.nivel_maximo,
+            "nodos_visitados_ultima_consulta": self.hnsw.nodos_visitados,
+        }

@@ -24,7 +24,7 @@ from .etapa1_preproceso import Preprocesador
 from .etapa2_prioridad import ColaPrioridad
 from .etapa3_cache import CatalogoCache
 from .etapa4_bplustree import IndiceProductos
-from .etapa5_kdtree import IndiceKD, vectorizar
+from .etapa5_kdtree import IndiceKD, distancia_mixta
 from .etapa6_probabilistico import DetectorFraude
 from .etapa7_similitud import Similitud
 from .etapa8_grafo import GrafoCoCompra
@@ -61,7 +61,7 @@ class Pipeline:
             tasa_fp=c.tasa_fp_bloom,
             seed=c.seed,
         )
-        self.e7 = Similitud(seed=c.seed)
+        self.e7 = Similitud(distancia_mixta, seed=c.seed)  # HNSW usa la misma distancia que el KD-Tree
         self.e8 = GrafoCoCompra(seed=c.seed)
         self.e9 = Servicio(self.e3, self.e5, self.e7, self.e8, k=c.k)
 
@@ -104,7 +104,8 @@ class Pipeline:
         self.e7.cerrar()
         productos = list(self.e3.productos())
         self.e5.construir(productos)
-        self.e7.construir_vectorial({p.product_id: vectorizar(p) for p in productos})
+        # Los mismos vectores del KD-Tree, normalizados con el precio mínimo y máximo reales del catálogo.
+        self.e7.construir_vectorial(dict(zip(self.e5.ids, self.e5.puntos)))
 
     def metricas(self) -> dict[str, dict[str, Any]]:
         return {e.nombre: e.metricas() for e in self.etapas()}
