@@ -64,7 +64,7 @@ class Producto:
 class Alerta:
     """Salida de la etapa 6. Vuelve al heap de la etapa 2 con Prioridad.ALERTA."""
 
-    tipo: str  # "tarjeta" | "usuario"
-    clave: str  # card_id o user_id señalado
+    tipo: str  # "senalada" (Bloom Filter) | "intensidad" (Count-Min Sketch)
+    clave: str  # card_id
     conteo_estimado: int  # Count-Min Sketch en la ventana actual
     evento: Event  # operación retenida hasta verificar la alerta
