@@ -1,7 +1,6 @@
 """Etapa 9 — Servicio y visualización.
 
-Estructuras: Trie para autocompletado y Top-K con heap de tamaño k. Consume
-las salidas de las demás etapas, que el orquestador le pasa al construirlo.
+Trie para autocompletado, Top-K de ventas, recomendaciones y panel.
 """
 from __future__ import annotations
 

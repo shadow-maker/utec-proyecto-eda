@@ -1,11 +1,7 @@
 """Etapa 7 [FIJA] — Similitud aproximada.
 
-Estructuras: MinHash + LSH sobre conjuntos (usuarios que compraron o
-agregaron al carrito cada producto) y HNSW sobre vectores de producto.
-Líneas base: Jaccard por fuerza bruta y KNN exacto de la etapa 5.
-
-La distancia del HNSW la entrega el orquestador (la misma del KD-Tree de la
-etapa 5), así este módulo no importa otra etapa.
+MinHash + LSH sobre los compradores de cada producto y HNSW sobre sus vectores.
+La distancia del HNSW la entrega el orquestador.
 """
 from __future__ import annotations
 

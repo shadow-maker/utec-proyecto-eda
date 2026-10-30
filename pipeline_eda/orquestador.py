@@ -1,17 +1,10 @@
-"""Orquestador del pipeline.
+"""Orquestador del pipeline: el único módulo que conoce todas las etapas y las conecta.
 
-Único módulo que conoce a todas las etapas y las conecta:
+    fuente → 0 → 1 → 2 heap → 6 fraude ─┬→ alerta → 2 heap
+                                        └→ 3, 4, 7, 8, 9
+    al cerrar: 5 KD-Tree y HNSW (7) con el catálogo de la etapa 3.
 
-    fuente → 0 sintético + buffer → 1 dedup → 2 heap → despachador ─┬→ 6 fraude ─ alerta → 2 heap
-                                                                    ├→ 3 catálogo / LRU
-                                                                    ├→ 4 B+Tree
-                                                                    ├→ 7 similitud
-                                                                    ├→ 8 grafo
-                                                                    └→ 9 servicio
-    al cerrar: 5 KD-Tree y HNSW (7) se construyen con el catálogo de la etapa 3.
-
-Un módulo de etapa solo importa `evento`, nunca otro módulo
-de etapa. Toda etapa expone `nombre` y `metricas()`, que se usan en `metricas()`.
+Cada etapa solo importa `evento` y expone `nombre` y `metricas()`.
 """
 from __future__ import annotations
 

@@ -1,7 +1,6 @@
 """Etapa 1 — Preprocesamiento por lotes.
 
-Estructuras: ordenación eficiente propia + búsqueda binaria para limpiar y
-deduplicar.
+Valida, normaliza y deduplica cada lote con merge sort y búsqueda binaria.
 """
 from __future__ import annotations
 

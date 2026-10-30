@@ -1,10 +1,7 @@
 """Etapa 6 [FIJA] — Filtrado probabilístico.
 
-Estructuras: Bloom Filter para tarjetas señaladas y Count-Min Sketch para la
-intensidad de intentos de compra por tarjeta en una ventana temporal.
-Un positivo del Bloom Filter se verifica contra el conjunto exacto antes de
-bloquear la operación. Las alertas de intensidad se confirman sin verificar:
-con los parámetros del sketch, la sobreestimación esperada es menor que 1 intento.
+Bloom Filter para tarjetas señaladas y Count-Min Sketch para los intentos por tarjeta en una ventana.
+Los positivos del Bloom Filter se verifican contra el conjunto exacto antes de bloquear.
 """
 from __future__ import annotations
 

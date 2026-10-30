@@ -1,7 +1,6 @@
 """Etapa 2 — Cola con prioridades.
 
-Estructura: heap binario de mínimos propio. Express > estándar > programada;
-las alertas de la etapa 6 se atienden antes que todo.
+Heap binario de mínimos: alertas, luego express, estándar, programada y navegación.
 """
 from __future__ import annotations
 

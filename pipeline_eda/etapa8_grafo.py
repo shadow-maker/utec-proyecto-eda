@@ -1,9 +1,6 @@
-"""Etapa 8 [FIJA] — Grafo de dominio.
+"""Etapa 8 [FIJA] — Grafo de co-compra.
 
-Nodos = productos; arista ponderada = en cuántas órdenes se compraron juntos.
-El grafo es no dirigido y se guarda como lista de adyacencia. Influencia con
-PageRank (vs. ranking por grado) y comunidades con Label Propagation (vs.
-componentes conexas).
+PageRank para la influencia de cada producto y Label Propagation para las comunidades.
 """
 from __future__ import annotations
 

@@ -1,10 +1,7 @@
 """Etapa 0 — Ingesta y buffer.
 
-Estructura: cola FIFO propia sobre lista enlazada, con capacidad acotada.
-
-También genera el componente sintético del escenario B que el CSV real no trae
-(órdenes, tipo de envío, tarjetas, duplicados y ráfagas de fraude). Todo lo
-aleatorio sale de SEMILLA: misma semilla, mismos datos.
+Lee el CSV, agrega el componente sintético (órdenes, envíos, tarjetas, duplicados y fraude, con SEMILLA fija)
+y entrega el stream en lotes por una cola FIFO sobre lista enlazada.
 """
 from __future__ import annotations
 

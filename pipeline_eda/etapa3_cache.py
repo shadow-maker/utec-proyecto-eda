@@ -1,7 +1,6 @@
 """Etapa 3 — Almacenamiento, lookup y caché.
 
-Estructuras: hash table propia para el catálogo, LRU (hash + lista doblemente
-enlazada) para lookups frecuentes y matriz dispersa usuario × producto.
+Catálogo en tabla hash, LRU para consultas frecuentes y matriz dispersa usuario × producto.
 """
 
 from __future__ import annotations

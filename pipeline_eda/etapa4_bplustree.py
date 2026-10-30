@@ -1,4 +1,4 @@
-"""Etapa 4 — Indexación principal mediante árboles B+."""
+"""Etapa 4 — Índices B+Tree de productos por precio y de eventos por tiempo."""
 
 from __future__ import annotations
 

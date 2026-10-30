@@ -1,8 +1,6 @@
-"""Etapa 5 — KD-Tree por precio y KNN exacto con distancia mixta.
+"""Etapa 5 — KD-Tree y KNN exacto.
 
-Distancia = sqrt((precio_normalizado_a - precio_normalizado_b)^2
-                 + (0 si categoria igual, 1 si diferente)).
-La categoría se conserva como entero; NO se usa como coordenada continua.
+Distancia = sqrt(Δprecio_normalizado² + (0 si es la misma categoría, 1 si no)).
 """
 from __future__ import annotations
 
