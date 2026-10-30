@@ -1,8 +1,4 @@
-"""Contrato de datos del pipeline (fila A del plan — todos).
-
-Todas las etapas intercambian estos tipos. Cambiar un campo afecta a todo el
-equipo: hacerlo solo mediante un PR revisado por los tres.
-"""
+"""Contrato de datos del pipeline: los tipos que intercambian todas las etapas."""
 from __future__ import annotations
 
 from dataclasses import dataclass

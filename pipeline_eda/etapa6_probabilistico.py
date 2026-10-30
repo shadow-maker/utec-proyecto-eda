@@ -1,4 +1,4 @@
-"""Etapa 6 [FIJA] — Filtrado probabilístico (responsable: A).
+"""Etapa 6 [FIJA] — Filtrado probabilístico.
 
 Estructuras: Bloom Filter para tarjetas señaladas y Count-Min Sketch para la
 intensidad de intentos de compra por tarjeta en una ventana temporal.

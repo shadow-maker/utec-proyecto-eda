@@ -1,4 +1,4 @@
-"""Etapa 8 [FIJA] — Grafo de dominio (responsable: C).
+"""Etapa 8 [FIJA] — Grafo de dominio.
 
 Nodos = productos; arista ponderada = en cuántas órdenes se compraron juntos.
 El grafo es no dirigido y se guarda como lista de adyacencia. Influencia con

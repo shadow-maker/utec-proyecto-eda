@@ -1,4 +1,4 @@
-"""Orquestador del pipeline (filas E y G del plan — todos).
+"""Orquestador del pipeline.
 
 Único módulo que conoce a todas las etapas y las conecta:
 
@@ -10,7 +10,7 @@
                                                                     └→ 9 servicio
     al cerrar: 5 KD-Tree y HNSW (7) se construyen con el catálogo de la etapa 3.
 
-Regla del proyecto: un módulo de etapa solo importa `evento`, nunca otro módulo
+Un módulo de etapa solo importa `evento`, nunca otro módulo
 de etapa. Toda etapa expone `nombre` y `metricas()`, que se usan en `metricas()`.
 """
 from __future__ import annotations

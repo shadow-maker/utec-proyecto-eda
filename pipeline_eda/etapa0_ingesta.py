@@ -1,4 +1,4 @@
-"""Etapa 0 — Ingesta y buffer (fila B del plan — todos).
+"""Etapa 0 — Ingesta y buffer.
 
 Estructura: cola FIFO propia sobre lista enlazada, con capacidad acotada.
 

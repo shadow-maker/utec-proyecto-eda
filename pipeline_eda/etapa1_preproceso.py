@@ -1,4 +1,4 @@
-"""Etapa 1 — Preprocesamiento por lotes (responsable: A).
+"""Etapa 1 — Preprocesamiento por lotes.
 
 Estructuras: ordenación eficiente propia + búsqueda binaria para limpiar y
 deduplicar.
@@ -59,9 +59,7 @@ def _merge(
     claves: list[Any], origen: list[int], destino: list[int], ini: int, medio: int, fin: int
 ) -> None:
     """Mezcla origen[ini:medio] y origen[medio:fin] (índices ordenados por clave) en destino[ini:fin]."""
-    # `destino` llega por object reference: es la misma lista que tiene merge_sort,
-    # así que escribir destino[k] o destino[k:fin] la modifica allá, sin devolver
-    # nada. Se reutiliza un solo buffer de tamaño n en vez de crear listas por merge.
+    # `destino` es el buffer de merge_sort: se escribe en él sin crear listas nuevas.
     if not claves[origen[medio]] < claves[origen[medio - 1]]:  # ya están en orden
         destino[ini:fin] = origen[ini:fin]
         return
@@ -97,7 +95,7 @@ def busqueda_binaria(ordenados: list[Any], objetivo: Any) -> int:
         else:
             hi = medio
 
-    if lo < len(ordenados) and ordenados[lo] == objetivo: # validacion extra
+    if lo < len(ordenados) and ordenados[lo] == objetivo:
         return lo
     return -1
 

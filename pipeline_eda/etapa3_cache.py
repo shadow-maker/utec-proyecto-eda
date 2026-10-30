@@ -1,4 +1,4 @@
-"""Etapa 3 — Almacenamiento, lookup y caché (responsable: C).
+"""Etapa 3 — Almacenamiento, lookup y caché.
 
 Estructuras: hash table propia para el catálogo, LRU (hash + lista doblemente
 enlazada) para lookups frecuentes y matriz dispersa usuario × producto.
@@ -16,33 +16,29 @@ class TablaHash:
     """Tabla hash propia con encadenamiento y rehash cuando se supera el factor de carga."""
 
     def __init__(self, capacidad_inicial: int = 17, factor_max: float = 0.75) -> None:
-        # Creamos 'capacidad_inicial' casilleros vacíos. Cada casillero es una lista.
         self._casilleros: list[list[tuple[Any, Any]]] = [[] for _ in range(capacidad_inicial)]
-        self._tamano = 0  # cuántas claves hay guardadas
+        self._tamano = 0
         self.factor_max = factor_max  # factor de carga máximo antes de agrandar
 
     def _indice(self, clave: Any) -> int:
-        # ¿En qué casillero va esta clave? hash() de Python + resto de la división.
         return hash(clave) % len(self._casilleros)
 
     def put(self, clave: Any, valor: Any) -> None:
-        casillero = self._casilleros[self._indice(clave)]  # ir al casillero que toca
-        for i, (k, _) in enumerate(casillero):  # ¿la clave ya está ahí?
-            if k == clave:
-                casillero[i] = (clave, valor)  # sí: solo actualizamos el valor
+        casillero = self._casilleros[self._indice(clave)]
+        for i, (k, _) in enumerate(casillero):
+            if k == clave:  # ya estaba: se actualiza el valor
+                casillero[i] = (clave, valor)
                 return
-        casillero.append((clave, valor))  # no: la agregamos al final (si había otra, es una colisión)
+        casillero.append((clave, valor))  # si el casillero ya tenía otra clave, es una colisión
         self._tamano += 1
-        # Si hay demasiadas claves por casillero, agrandamos el estante.
         if self._tamano > self.factor_max * len(self._casilleros):
             self._redimensionar(2 * len(self._casilleros) + 1)
 
     def get(self, clave: Any, defecto: Any = None) -> Any:
-        # Ir al casillero y recorrer su (cortísima) lista.
         for k, v in self._casilleros[self._indice(clave)]:
             if k == clave:
                 return v
-        return defecto  # no estaba
+        return defecto
 
     def eliminar(self, clave: Any) -> bool:
         casillero = self._casilleros[self._indice(clave)]
@@ -54,8 +50,7 @@ class TablaHash:
         return False
 
     def _redimensionar(self, nueva_capacidad: int) -> None:
-        # Estante nuevo (más grande) y reubicar cada clave: su casillero cambia
-        # porque ahora dividimos por otro número.
+        # Cada clave cambia de casillero porque cambia el divisor.
         anteriores = self._casilleros
         self._casilleros = [[] for _ in range(nueva_capacidad)]
         for casillero in anteriores:
@@ -88,13 +83,12 @@ class TablaHash:
 
 
 class _Nodo:
-    # Un elemento de la lista: guarda clave, valor y sus dos vecinos.
     __slots__ = ("clave", "valor", "anterior", "siguiente")
 
     def __init__(self, clave: Any = None, valor: Any = None) -> None:
         self.clave, self.valor = clave, valor
-        self.anterior: _Nodo | None = None  # vecino de adelante (más reciente)
-        self.siguiente: _Nodo | None = None  # vecino de atrás (más antiguo)
+        self.anterior: _Nodo | None = None  # más reciente
+        self.siguiente: _Nodo | None = None  # más antiguo
 
 
 class CacheLRU:
@@ -102,18 +96,17 @@ class CacheLRU:
 
     def __init__(self, capacidad: int) -> None:
         self.capacidad = capacidad
-        self.mapa = TablaHash()  # clave -> nodo (para encontrarlo rápido)
-        self.cabeza, self.cola = _Nodo(), _Nodo()  # extremos fijos
+        self.mapa = TablaHash()  # clave -> nodo
+        self.cabeza, self.cola = _Nodo(), _Nodo()  # centinelas
         self.cabeza.siguiente, self.cola.anterior = self.cola, self.cabeza
-        self.aciertos = 0  # veces que estaba en la caché
-        self.fallos = 0  # veces que no estaba
+        self.aciertos = 0
+        self.fallos = 0
 
     def _desenlazar(self, nodo: _Nodo) -> None:
-        # Sacar un nodo de la lista: sus vecinos se conectan entre sí.
         nodo.anterior.siguiente, nodo.siguiente.anterior = nodo.siguiente, nodo.anterior
 
     def _poner_adelante(self, nodo: _Nodo) -> None:
-        # Poner un nodo justo después de la cabeza (= el más reciente).
+        # Justo después de la cabeza: el más reciente.
         nodo.anterior, nodo.siguiente = self.cabeza, self.cabeza.siguiente
         self.cabeza.siguiente.anterior = nodo
         self.cabeza.siguiente = nodo
@@ -124,8 +117,8 @@ class CacheLRU:
             self.fallos += 1
             return None
         self.aciertos += 1
-        self._desenlazar(nodo)  # lo sacamos de donde estaba...
-        self._poner_adelante(nodo)  # ...y lo ponemos adelante: acaba de usarse
+        self._desenlazar(nodo)  # acaba de usarse: pasa adelante
+        self._poner_adelante(nodo)
         return nodo.valor
 
     def put(self, clave: Any, valor: Any) -> None:
@@ -135,11 +128,11 @@ class CacheLRU:
             self._desenlazar(nodo)
             self._poner_adelante(nodo)
             return
-        if len(self.mapa) >= self.capacidad:  # 1) compruebo: ¿está llena?
-            mas_antiguo = self.cola.anterior  # 2) elimino al más antiguo
+        if len(self.mapa) >= self.capacidad:  # llena: sale el más antiguo
+            mas_antiguo = self.cola.anterior
             self._desenlazar(mas_antiguo)
             self.mapa.eliminar(mas_antiguo.clave)
-        nodo = _Nodo(clave, valor)  # 3) añado el nuevo
+        nodo = _Nodo(clave, valor)
         self.mapa.put(clave, nodo)
         self._poner_adelante(nodo)
 

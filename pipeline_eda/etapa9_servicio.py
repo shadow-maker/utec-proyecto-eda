@@ -1,4 +1,4 @@
-"""Etapa 9 — Servicio y visualización (fila H del plan — todos).
+"""Etapa 9 — Servicio y visualización.
 
 Estructuras: Trie para autocompletado y Top-K con heap de tamaño k. Consume
 las salidas de las demás etapas, que el orquestador le pasa al construirlo.

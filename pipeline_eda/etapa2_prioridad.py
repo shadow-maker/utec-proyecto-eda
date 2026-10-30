@@ -1,4 +1,4 @@
-"""Etapa 2 — Cola con prioridades (responsable: A).
+"""Etapa 2 — Cola con prioridades.
 
 Estructura: heap binario de mínimos propio. Express > estándar > programada;
 las alertas de la etapa 6 se atienden antes que todo.
