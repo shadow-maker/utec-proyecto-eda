@@ -340,6 +340,7 @@ class Similitud:
         """Inserta en HNSW los vectores de producto (los entrega el orquestador)."""
         for product_id, vector in vectores.items():
             self.hnsw.insertar(product_id, vector)
+        self.hnsw.nodos_visitados = 0  # lo que contó la construcción no es una consulta
 
     def similares_vectoriales(self, product_id: int, k: int) -> list[int]:
         """Productos con atributos parecidos (HNSW), sin el propio producto."""

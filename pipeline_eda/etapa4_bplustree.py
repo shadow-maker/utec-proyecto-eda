@@ -72,7 +72,9 @@ class BPlusTree:
 
     def insertar(self, clave: Any, valor: Any) -> None:
         """Inserta un valor asociado a una clave."""
+        paginas = self._paginas_leidas_ultima_consulta
         hoja = self._buscar_hoja(clave)
+        self._paginas_leidas_ultima_consulta = paginas  # una inserción no es una consulta
         posicion = bisect_left(hoja.claves, clave)
 
         if (
